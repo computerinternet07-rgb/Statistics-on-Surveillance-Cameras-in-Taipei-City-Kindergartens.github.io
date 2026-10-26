@@ -1,0 +1,12 @@
+/* The material sits behind the existing HTML; card layout and search geometry stay intact. */
+.school[data-metal-eligible="true"]{background:#dde0e3;transform-origin:50% 50%;overflow-anchor:none}
+.school[data-metal-eligible="true"]:hover{background:#dde0e3}
+.school[data-metal-eligible="true"]::before{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;background-color:#dde0e3;background-image:var(--school-metal-image,none);background-size:cover;background-position:center}
+.school[data-metal-eligible="true"]::after{content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;pointer-events:none;box-shadow:inset 0 1px 0 rgb(255 255 255 / 85%),inset 0 -1px 0 rgb(55 65 75 / 14%)}
+.school[data-metal-eligible="true"] .school-identity,.school[data-metal-eligible="true"] .school-visuals{position:relative;z-index:1}
+.school[data-metal-eligible="true"] .school-type{color:#3e4a59}
+.school[data-metal-eligible="true"] .school-visuals{background:rgb(247 249 251 / 86%)}
+.school-reflection{position:absolute;inset:0;z-index:0;display:block;width:100%;height:100%;border-radius:inherit;pointer-events:none}
+.school[data-metal-eligible="true"][data-metal-active="true"]{border-color:#8195a8;will-change:transform}
+@media(prefers-reduced-motion:reduce){.school[data-metal-eligible="true"]{transform:none!important;will-change:auto!important}}
+@media(forced-colors:active){.school[data-metal-eligible="true"],.school[data-metal-eligible="true"]:hover{background:Canvas;color:CanvasText;transform:none!important}.school[data-metal-eligible="true"]::before,.school[data-metal-eligible="true"]::after,.school-reflection{display:none}.school[data-metal-eligible="true"] .school-visuals{background:Canvas}}

@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-Hant" data-release="2026-10-26-metal-fast-data"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="preconnect" href="https://script.google.com"><link rel="preconnect" href="https://script.googleusercontent.com"><meta name="description" content="查詢臺北市幼兒園監視器裝設情形。"><link id="siteIcon" rel="icon" type="image/png" href="./assets/site-mark.png"><title>幼兒園監視器裝設查詢｜臺北市政府教育局</title><link rel="stylesheet" href="./site.css?v=20261026">
+<link rel="stylesheet" href="./metal-cards.css?v=20261026"><!-- Three.js license
+The MIT License
+
+Copyright © 2010-2024 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+--><script defer src="./config.js?v=20261026"></script>
+<script defer src="./core.js?v=20261026"></script>
+<script defer src="./query.js?v=20261026"></script>
+<script defer src="./data-client.js?v=20261026"></script>
+<script defer src="./app.js?v=20261026"></script>
+<script defer src="./enhance.js?v=20261026"></script>
+</head><body>
+<a class="skip" href="#main">跳至主要內容</a>
+<header class="site-header"><div class="wrap header-row"><a class="brand" href="#main" aria-label="臺北市政府教育局，首頁"><img id="siteMark" class="brand-mark" fetchpriority="low" src="./assets/site-mark.png" width="44" height="44" alt="" aria-hidden="true" decoding="async"><span>臺北市政府教育局</span></a><nav class="nav" aria-label="主要導覽"><a href="#overview">全市概況</a><a href="#mapQuery">行政區</a><a href="#query">園所查詢</a><button id="mobileTop" type="button" aria-label="回到頁首">置頂</button><button id="largeText" type="button" aria-pressed="false">放大文字</button></nav></div></header>
+<main id="main" class="wrap" tabindex="-1"><section class="hero" id="overview"><div class="hero-copy"><h1>幼兒園監視器<br><span>裝設查詢</span></h1><form class="search-box" id="heroSearch"><label class="sr-only" for="schoolSearch">園所名稱</label><div class="search-line"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 5 5"/></svg><input id="schoolSearch" type="search" enterkeyhint="search" autocapitalize="off" spellcheck="false" autocomplete="off" placeholder="輸入園所名稱" maxlength="100"><button class="primary" type="submit">查詢<span aria-hidden="true"> →</span></button></div></form></div><div class="city-metric" aria-label="全市裝設覆蓋率"><p>全市裝設覆蓋率</p><strong id="indexValue" aria-live="polite">—</strong><div class="score-bar" aria-hidden="true"><span id="scoreFill"></span></div></div></section>
+<div id="connectionStatus" class="status" role="status" aria-live="polite" hidden></div>
+<section id="mapQuery" class="explore" aria-label="地圖查詢與立體監視器"><div class="map-block"><h2>行政區查詢</h2><div class="map-visual"><canvas id="districtMap" class="map-canvas" aria-hidden="true"></canvas></div><details class="district-picker" id="districtPicker"><summary><span class="picker-closed">展開行政區</span><span class="picker-open">收合行政區</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><div class="district-grid" id="districtButtons"></div></details></div><div class="camera-block"><div class="camera-stage"><canvas id="cameraCanvas" role="img" aria-label="臺北教育主題立體監視器與護盾"></canvas><svg id="cameraFallback" class="camera-fallback" viewBox="0 0 300 250" role="img" aria-label="臺北教育監視器"><rect x="89" y="64" width="154" height="79" rx="28" fill="#fff" stroke="#274b87" stroke-width="5"/><circle cx="93" cy="104" r="42" fill="#223759"/><circle cx="93" cy="104" r="27" fill="#3675cd"/><circle cx="93" cy="104" r="12" fill="#101d35"/><path d="M165 149v38m-40 15h80" stroke="#274b87" stroke-width="13" stroke-linecap="round"/><path d="m38 149 30-9 30 9-5 39-25 23-25-23Z" fill="#315fc5"/><path d="m53 172 10 10 21-23" fill="none" stroke="white" stroke-width="6"/></svg></div></div><div class="map-block city-block"><h2>全市查詢</h2><div class="map-visual"><canvas id="cityMap" class="map-canvas" aria-hidden="true"></canvas></div><button type="button" class="city-query" id="cityQuery">全部園所<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button></div></section>
+<section id="districts" class="comparison"><div class="section-title"><h2>各區裝設覆蓋率</h2><label><span class="sr-only">園所類型</span><select id="compareGroup"><option value="all">全部類型</option></select></label></div><div id="districtBars" class="district-bars"></div></section>
+<section id="query" class="query-section" aria-labelledby="queryHeading"><div class="section-title"><h2 id="queryHeading" tabindex="-1">園所查詢</h2></div><div id="queryPlaceholder" class="query-placeholder" role="status">正在讀取園所資料…</div><div id="localQuery" hidden></div></section></main>
+<footer class="site-footer"><div class="wrap footer-row"><p>臺北市政府教育局<span>學前教育科</span></p><p class="copyright">© <span id="copyrightYear">2026</span> 臺北市政府教育局<br><span lang="en">All rights reserved.</span></p></div></footer>
+<button id="backTop" class="back-top" type="button" aria-label="回到頁首" hidden><svg class="top-progress" viewBox="0 0 56 56" aria-hidden="true"><circle class="top-track" cx="28" cy="28" r="24"/><circle id="topProgress" cx="28" cy="28" r="24" pathLength="100"/></svg><svg class="top-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V4m-6 6 6-6 6 6"/></svg></button>
+</body></html>
+
