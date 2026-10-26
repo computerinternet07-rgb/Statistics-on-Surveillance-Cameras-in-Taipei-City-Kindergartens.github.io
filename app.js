@@ -81,19 +81,16 @@
 
   let client;
   function showStatus(state) {
-    const status = $('connectionStatus');
-    status.replaceChildren(); status.hidden = state.kind === 'ready' || state.kind === 'loading';
-    if (state.kind === 'ready') return;
-    if (state.kind === 'loading') { $('queryPlaceholder').hidden = !!queryApi; return; }
-    let text = '暫時無法讀取園所資料。';
-    if (state.kind === 'stale') {
-      const time = new Intl.DateTimeFormat('zh-TW', {timeZone: 'Asia/Taipei', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'}).format(new Date(state.generatedAt));
-      text = '目前顯示 ' + time + ' 同步的資料。';
+    const placeholder = $('queryPlaceholder');
+    // Blocked Google requests in LINE must not add a warning to usable data.
+    if (queryApi || state.kind === 'ready' || state.kind === 'stale') {
+      placeholder.hidden = true; return;
     }
-    status.append(document.createTextNode(text));
-    const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '重新更新'; retry.style.marginLeft = '12px';
-    retry.onclick = () => client.refresh(); status.append(retry);
-    if (!queryApi) { $('queryPlaceholder').hidden = true; }
+    placeholder.hidden = false; placeholder.replaceChildren();
+    if (state.kind === 'loading') { placeholder.textContent = '正在讀取園所資料…'; return; }
+    const message = document.createElement('p'); message.textContent = '園所資料暫時無法顯示';
+    const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '再試一次';
+    retry.onclick = () => client.refresh(); placeholder.append(message, retry);
   }
   client = new window.PublicDataClient(cfg, render, showStatus);
   window.cameraApp = {openQuery, render, diagnostics: () => ({...client.diagnostics(), firstReady})};
