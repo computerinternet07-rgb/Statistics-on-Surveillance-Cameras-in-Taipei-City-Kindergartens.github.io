@@ -3,6 +3,13 @@
 (function(root){
   'use strict';
   const D=root.CameraData;
+  const metalEligible=r=>r.outdoor==='yes'&&r.indoor==='full';
+  function prioritizeEligible(rows){
+    // Stable O(n) grouping before filtering and pagination; source data is unchanged.
+    const eligible=[],other=[];
+    for(const row of rows)(metalEligible(row)?eligible:other).push(row);
+    return eligible.concat(other);
+  }
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function visual(kind,status){
     const full=status==='full'||status==='yes',partial=status==='partial',unknown=status==='unknown';let drawing='';
@@ -108,7 +115,7 @@
       const scope=D.filter(state.rs,{district:state.f.district,group:state.f.group}),s=D.stats(scope);
       $('qSummary').textContent='查詢結果 '+result.length+' 所';
       $('qScope').textContent=(state.f.district==='all'?'全市':state.f.district)+'裝設覆蓋率 '+D.percent(s.index);
-      $('qResults').innerHTML=result.length?result.slice((state.page-1)*PAGE_SIZE,state.page*PAGE_SIZE).map((r,i)=>'<article class="school" data-metal-eligible="'+(r.outdoor==='yes'&&r.indoor==='full'?'true':'false')+'" aria-labelledby="school-title-'+i+'"><div class="school-identity"><h3 id="school-title-'+i+'">'+highlightedName(r.name)+'</h3><p class="school-type">'+escape(r.district)+' · '+escape(r.type)+'</p></div><div class="school-visuals">'+visual('indoor',r.indoor)+visual('outdoor',r.outdoor)+'</div></article>').join(''):'<div class="empty"><h3>沒有符合的幼兒園</h3><p>請縮短園所名稱，或清除部分條件。</p></div>';
+      $('qResults').innerHTML=result.length?result.slice((state.page-1)*PAGE_SIZE,state.page*PAGE_SIZE).map((r,i)=>'<article class="school" data-metal-eligible="'+(metalEligible(r)?'true':'false')+'" aria-labelledby="school-title-'+i+'"><div class="school-identity"><h3 id="school-title-'+i+'">'+highlightedName(r.name)+'</h3><p class="school-type">'+escape(r.district)+' · '+escape(r.type)+'</p></div><div class="school-visuals">'+visual('indoor',r.indoor)+visual('outdoor',r.outdoor)+'</div></article>').join(''):'<div class="empty"><h3>沒有符合的幼兒園</h3><p>請縮短園所名稱，或清除部分條件。</p></div>';
       $('qResults').setAttribute('aria-busy','false');
       document.dispatchEvent(new CustomEvent('school-cards:updated'));
 
@@ -214,7 +221,7 @@
       setData(data){
         if(!D.validate(data))throw new Error('資料格式不符');
         if(!state.data)host.querySelectorAll('input,select,button').forEach(el=>el.disabled=false);
-        state.data=data;state.rs=D.rows(data);const draft=$('qGroup').value;
+        state.data=data;state.rs=prioritizeEligible(D.rows(data));const draft=$('qGroup').value;
         $('qGroup').innerHTML='<option value="all">全部類型</option>'+data.groups.map(g=>'<option value="'+escape(g.id)+'">'+escape(g.label)+'</option>').join('');
         $('qGroup').value=data.groups.some(g=>g.id===draft)?draft:'all';
         if(!data.groups.some(g=>g.id===state.f.group))state.f.group='all';
