@@ -122,7 +122,7 @@ function makeCamera(){
 function makeMap(id,city){
   const v=view($(id),[.4,5,5.5],[0,0,0]);
   v.fit=()=>{v.camera.zoom=1.14*Math.min(1,v.canvas.clientWidth/350*430/v.canvas.clientHeight);};v.fit();v.camera.updateProjectionMatrix();
-  const shapes=[],ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),liftHeight=.18;let hovered=null,labelItems=[],labelWidth=0,labelHeight=0;
+  const shapes=[],ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let liftHeight=.18,hovered=null,labelItems=[],labelWidth=0,labelHeight=0;
   const convert=([lon,lat])=>new THREE.Vector2((lon-121.56)*18*.906,(lat-25.085)*18);
   (window.TAIPEI_MAP||[]).forEach((d,i)=>{
     const group=new THREE.Group();group.userData.name=d.name;v.scene.add(group);
@@ -141,55 +141,74 @@ function makeMap(id,city){
   }
   v.labelLayout=()=>{
     if(city)return;
-    v.camera.updateMatrixWorld();
-    const width=v.canvas.clientWidth,height=v.canvas.clientHeight,gap=4,placed=[];
+    const width=v.canvas.clientWidth,height=v.canvas.clientHeight,gap=4;
     if(!width||!height)return;
     labelWidth=width;labelHeight=height;
-    const project=projectLabel;
+    const groups=v.scene.children.filter(g=>g.userData.label);
+    const sizes=groups.map(group=>({group,w:group.userData.label.offsetWidth,h:group.userData.label.offsetHeight}));
     const inRing=(x,y,ring)=>{let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;};
-    const items=v.scene.children.filter(g=>g.userData.label).map(g=>{
-      const label=g.userData.label,anchor=project(g.userData.point),raised=project(g.userData.point.clone().add(new THREE.Vector3(0,liftHeight,0)));
-      const polygons=g.userData.labelPolygons.map(rings=>rings.map(ring=>ring.map(coord=>{const p=convert(coord);return project(new THREE.Vector3(p.x,.11,-p.y));})));
-      const points=polygons.flat(2),xs=points.map(p=>p.x),ys=points.map(p=>p.y);
-      return {group:g,label,anchor,polygons,dx:raised.x-anchor.x,dy:raised.y-anchor.y,w:label.offsetWidth,h:label.offsetHeight,area:(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys))};
-    }).sort((a,b)=>a.area-b.area);
-    // Reserve each label's complete lift path so it can follow its district
-    // without colliding with neighbouring names. Layout runs only on size changes.
-    const offsets=[{x:0,y:0}];
-    for(let y=-64;y<=64;y+=4)for(let x=-64;x<=64;x+=4)if(x||y)offsets.push({x,y});
+    const inside=(x,y,polygons)=>polygons.some(rings=>inRing(x,y,rings[0])&&!rings.slice(1).some(ring=>inRing(x,y,ring)));
+    const overlaps=(a,b)=>a.right+gap>b.left&&a.left-gap<b.right&&a.bottom+gap>b.top&&a.top-gap<b.bottom;
+    const offsets=[];
+    for(let y=-64;y<=64;y+=4)for(let x=-64;x<=64;x+=4)offsets.push({x,y});
     offsets.sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
-    for(const item of items){
-      let chosen=null;
-      for(const stayInDistrict of [true,false]){
-        for(const offset of offsets){
-          const x=item.anchor.x+offset.x,y=item.anchor.y+offset.y;
-          const box={left:x-item.w/2+Math.min(0,item.dx),right:x+item.w/2+Math.max(0,item.dx),top:y-item.h/2+Math.min(0,item.dy),bottom:y+item.h/2+Math.max(0,item.dy)};
-          if(box.left<gap||box.right>width-gap||box.top<gap||box.bottom>height-gap)continue;
-          if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
-          if(stayInDistrict&&!item.polygons.some(rings=>inRing(x,y,rings[0])&&!rings.slice(1).some(ring=>inRing(x,y,ring))))continue;
-          chosen={x,y};break;
-        }
-        if(chosen)break;
-      }
-      // Text-only zoom can exhaust the nearby positions without resizing the map.
-      // Search the remaining map space before falling back to the original anchor.
-      if(!chosen){
-        let distance=Infinity;
-        for(let y=gap+item.h/2-Math.min(0,item.dy);y<=height-gap-item.h/2-Math.max(0,item.dy);y+=4){
-          for(let x=gap+item.w/2-Math.min(0,item.dx);x<=width-gap-item.w/2-Math.max(0,item.dx);x+=4){
-            const d=(x-item.anchor.x)**2+(y-item.anchor.y)**2;if(d>=distance)continue;
-            const box={left:x-item.w/2+Math.min(0,item.dx),right:x+item.w/2+Math.max(0,item.dx),top:y-item.h/2+Math.min(0,item.dy),bottom:y+item.h/2+Math.max(0,item.dy)};
-            if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
-            chosen={x,y};distance=d;
-          }
-        }
-      }
-      chosen=chosen||item.anchor;
-      item.x=chosen.x;item.y=chosen.y;
-      placed.push({left:chosen.x-item.w/2+Math.min(0,item.dx),right:chosen.x+item.w/2+Math.max(0,item.dx),top:chosen.y-item.h/2+Math.min(0,item.dy),bottom:chosen.y+item.h/2+Math.max(0,item.dy)});
 
+    // Resolve the twelve names together. Every candidate belongs to its own
+    // district; bounded iterative backtracking avoids pushing a name into a neighbour.
+    function arrange(domains){
+      if(domains.some(d=>!d.choices.length))return null;
+      const frame=remaining=>{const ordered=remaining.slice().sort((a,b)=>a.choices.length-b.choices.length);return {domain:ordered[0],remaining:ordered.slice(1),next:0,chosen:null};};
+      const stack=[frame(domains)];let visits=0;
+      while(stack.length&&visits++<6000){
+        const current=stack[stack.length-1];
+        if(current.next===current.domain.choices.length){stack.pop();continue;}
+        const chosen=current.domain.choices[current.next++];current.chosen=chosen;
+        const remaining=[];let blocked=false;
+        for(const domain of current.remaining){
+          const choices=domain.choices.filter(c=>!overlaps(chosen,c));
+          if(!choices.length){blocked=true;break;}
+          remaining.push({item:domain.item,choices});
+        }
+        if(blocked)continue;
+        if(!remaining.length)return stack.map(f=>({...f.domain.item,x:f.chosen.x,y:f.chosen.y}));
+        stack.push(frame(remaining));
+      }
+      return null;
     }
-    labelItems=items;positionLabels();
+
+    let solution=null,domains=[];
+    // Keep the existing view when space permits. Crowded or enlarged text uses
+    // a gentler lift, then a more overhead view, rather than displaced labels.
+    for(const [lift,overhead] of [[.18,false],[.06,false],[.06,true],[0,true]]){
+      liftHeight=lift;
+      v.camera.position.set(.4,overhead?6.4:5,overhead?3.5:5.5);v.camera.lookAt(0,0,0);v.camera.updateMatrixWorld();
+      domains=sizes.map(({group,w,h})=>{
+        const anchor=projectLabel(group.userData.point),raised=projectLabel(group.userData.point.clone().add(new THREE.Vector3(0,liftHeight,0)));
+        const polygons=group.userData.labelPolygons.map(rings=>rings.map(ring=>ring.map(coord=>{const p=convert(coord);return projectLabel(new THREE.Vector3(p.x,.11,-p.y));})));
+        const item={group,label:group.userData.label,anchor,w,h,dx:raised.x-anchor.x,dy:raised.y-anchor.y};
+        const choices=[];
+        for(const offset of offsets){
+          const x=anchor.x+offset.x,y=anchor.y+offset.y;
+          if(!inside(x,y,polygons)||!inside(x-1,y,polygons)||!inside(x+1,y,polygons)||!inside(x,y-1,polygons)||!inside(x,y+1,polygons))continue;
+          const box={x,y,left:x-w/2+Math.min(0,item.dx),right:x+w/2+Math.max(0,item.dx),top:y-h/2+Math.min(0,item.dy),bottom:y+h/2+Math.max(0,item.dy)};
+          if(box.left<gap||box.right>width-gap||box.top<gap||box.bottom>height-gap)continue;
+          choices.push(box);
+        }
+        return {item,choices};
+      });
+      solution=arrange(domains);if(solution)break;
+    }
+    if(!solution){
+      // Extremely large browser text still keeps every name over its own region.
+      const placed=[];
+      solution=domains.slice().sort((a,b)=>a.choices.length-b.choices.length).map(({item,choices})=>{
+        const chosen=choices.find(c=>!placed.some(p=>overlaps(c,p)))||choices[0]||item.anchor;
+        placed.push(chosen);return {...item,x:chosen.x,y:chosen.y};
+      });
+    }
+    labelItems=solution;
+    groups.forEach(group=>{group.position.y=Math.min(group.position.y,liftHeight);});
+    positionLabels();v.dirty=true;wakeScene();
   };v.labelLayout();
   document.fonts.ready.then(()=>v.labelLayout());
   if(!city){const labelSizes=new ResizeObserver(()=>v.labelLayout());labelItems.forEach(item=>labelSizes.observe(item.label));}
