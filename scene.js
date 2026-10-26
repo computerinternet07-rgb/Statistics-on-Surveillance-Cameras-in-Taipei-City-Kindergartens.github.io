@@ -123,8 +123,6 @@ function makeMap(id,city){
   const v=view($(id),[.4,5,5.5],[0,0,0]);
   v.fit=()=>{v.camera.zoom=1.14*Math.min(1,v.canvas.clientWidth/350*430/v.canvas.clientHeight);};v.fit();v.camera.updateProjectionMatrix();
   const shapes=[],ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),liftHeight=.18;let hovered=null,labelItems=[],labelWidth=0,labelHeight=0;
-  const labelGuides=city?null:document.createElementNS('http://www.w3.org/2000/svg','svg');
-  if(labelGuides){labelGuides.setAttribute('aria-hidden','true');labelGuides.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none';v.canvas.parentElement.append(labelGuides);}
   const convert=([lon,lat])=>new THREE.Vector2((lon-121.56)*18*.906,(lat-25.085)*18);
   (window.TAIPEI_MAP||[]).forEach((d,i)=>{
     const group=new THREE.Group();group.userData.name=d.name;v.scene.add(group);
@@ -139,7 +137,6 @@ function makeMap(id,city){
       const x=item.x+anchor.x-item.anchor.x,y=item.y+anchor.y-item.anchor.y;
       item.label.style.left=x+'px';item.label.style.top=y+'px';
       item.group.userData.labelBox={left:x-item.w/2,right:x+item.w/2,top:y-item.h/2,bottom:y+item.h/2};
-      if(item.guide)for(const [key,value] of Object.entries({x1:anchor.x,y1:anchor.y,x2:x,y2:y}))item.guide.setAttribute(key,value);
     }
   }
   v.labelLayout=()=>{
@@ -148,7 +145,6 @@ function makeMap(id,city){
     const width=v.canvas.clientWidth,height=v.canvas.clientHeight,gap=4,placed=[];
     if(!width||!height)return;
     labelWidth=width;labelHeight=height;
-    labelGuides.setAttribute('viewBox','0 0 '+width+' '+height);labelGuides.replaceChildren();
     const project=projectLabel;
     const inRing=(x,y,ring)=>{let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;};
     const items=v.scene.children.filter(g=>g.userData.label).map(g=>{
@@ -171,7 +167,7 @@ function makeMap(id,city){
           if(box.left<gap||box.right>width-gap||box.top<gap||box.bottom>height-gap)continue;
           if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
           if(stayInDistrict&&!item.polygons.some(rings=>inRing(x,y,rings[0])&&!rings.slice(1).some(ring=>inRing(x,y,ring))))continue;
-          chosen={x,y,leader:!stayInDistrict};break;
+          chosen={x,y};break;
         }
         if(chosen)break;
       }
@@ -184,18 +180,14 @@ function makeMap(id,city){
             const d=(x-item.anchor.x)**2+(y-item.anchor.y)**2;if(d>=distance)continue;
             const box={left:x-item.w/2+Math.min(0,item.dx),right:x+item.w/2+Math.max(0,item.dx),top:y-item.h/2+Math.min(0,item.dy),bottom:y+item.h/2+Math.max(0,item.dy)};
             if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
-            chosen={x,y,leader:true};distance=d;
+            chosen={x,y};distance=d;
           }
         }
       }
       chosen=chosen||item.anchor;
       item.x=chosen.x;item.y=chosen.y;
       placed.push({left:chosen.x-item.w/2+Math.min(0,item.dx),right:chosen.x+item.w/2+Math.max(0,item.dx),top:chosen.y-item.h/2+Math.min(0,item.dy),bottom:chosen.y+item.h/2+Math.max(0,item.dy)});
-      if(chosen.leader){
-        const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-        for(const [key,value] of Object.entries({x1:item.anchor.x,y1:item.anchor.y,x2:chosen.x,y2:chosen.y,stroke:'#526071','stroke-width':1.2}))line.setAttribute(key,value);
-        labelGuides.append(line);item.guide=line;
-      }
+
     }
     labelItems=items;positionLabels();
   };v.labelLayout();
