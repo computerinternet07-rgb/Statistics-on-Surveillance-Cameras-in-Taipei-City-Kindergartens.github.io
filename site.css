@@ -495,3 +495,7 @@ body.large .school .installation strong{font-size:30px}
  .school .installation svg,.school:hover .installation svg,.school:active .installation svg,.school.is-pressed .installation svg{transform:none}
 }
 
+
+/* The loading/fallback illustration shares the model slot instead of adding a second row. */
+.camera-stage{display:grid}
+.camera-stage > #cameraCanvas,.camera-stage > #cameraFallback{grid-area:1 / 1;min-width:0}

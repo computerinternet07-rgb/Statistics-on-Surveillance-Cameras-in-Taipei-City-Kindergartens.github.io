@@ -201,7 +201,7 @@ addEventListener('visibilitychange',()=>{if(document.hidden){cancelAnimationFram
 addEventListener('pagehide',event=>{cancelAnimationFrame(sceneFrame);sceneFrame=0;if(!event.persisted){sceneStopped=true;for(const v of views)v.renderer.dispose();}});
 addEventListener('pageshow',()=>{if(!sceneStopped){views.forEach(v=>v.dirty=true);wakeScene();}});
 requestAnimationFrame(()=>setTimeout(()=>{
-try{makeCamera();$('cameraFallback').hidden=true;}catch(e){$('cameraCanvas').hidden=true;$('cameraFallback').hidden=false;}
+try{makeCamera();$('cameraFallback').setAttribute('hidden','');}catch(e){$('cameraCanvas').hidden=true;$('cameraFallback').removeAttribute('hidden');}
 for(const [id,city] of [['districtMap',false],['cityMap',true]])try{makeMap(id,city);}catch(e){$(id).hidden=true;}
 wakeScene();
 },0));
