@@ -122,7 +122,7 @@ function makeCamera(){
 function makeMap(id,city){
   const v=view($(id),[.4,5,5.5],[0,0,0]);
   v.fit=()=>{v.camera.zoom=1.14*Math.min(1,v.canvas.clientWidth/350*430/v.canvas.clientHeight);};v.fit();v.camera.updateProjectionMatrix();
-  const shapes=[],ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let hovered=null;
+  const shapes=[],ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),liftHeight=.18;let hovered=null,labelItems=[],labelWidth=0,labelHeight=0;
   const labelGuides=city?null:document.createElementNS('http://www.w3.org/2000/svg','svg');
   if(labelGuides){labelGuides.setAttribute('aria-hidden','true');labelGuides.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none';v.canvas.parentElement.append(labelGuides);}
   const convert=([lon,lat])=>new THREE.Vector2((lon-121.56)*18*.906,(lat-25.085)*18);
@@ -131,22 +131,34 @@ function makeMap(id,city){
     d.polygons.forEach(rings=>{const pts=rings[0].map(convert),shape=new THREE.Shape(pts);rings.slice(1).forEach(r=>shape.holes.push(new THREE.Path(r.map(convert))));const geo=new THREE.ExtrudeGeometry(shape,{depth:.11,bevelEnabled:false});const m=mesh(geo,material(city?0x556777:[0x7d8a98,0x9aa6b2,0x64798e][i%3],.08,.8),group);m.rotation.x=-Math.PI/2;m.userData.group=group;shapes.push(m);const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.85}));m.add(edges);});
     if(!city){const label=document.createElement('span');label.className='map-name';label.style.whiteSpace='nowrap';label.textContent=d.name.replace('區','');group.userData.labelPolygons=d.polygons;v.canvas.parentElement.append(label);const p=convert(d.center);group.userData.label=label;group.userData.point=new THREE.Vector3(p.x,.18,-p.y);}
   });
+  const projectLabel=point=>{const p=point.clone().project(v.camera);return {x:(p.x+1)*labelWidth/2,y:(1-p.y)*labelHeight/2};};
+  function positionLabels(){
+    for(const item of labelItems){
+      item.group.updateMatrixWorld(true);
+      const anchor=projectLabel(item.group.userData.point.clone().applyMatrix4(item.group.matrixWorld));
+      const x=item.x+anchor.x-item.anchor.x,y=item.y+anchor.y-item.anchor.y;
+      item.label.style.left=x+'px';item.label.style.top=y+'px';
+      item.group.userData.labelBox={left:x-item.w/2,right:x+item.w/2,top:y-item.h/2,bottom:y+item.h/2};
+      if(item.guide)for(const [key,value] of Object.entries({x1:anchor.x,y1:anchor.y,x2:x,y2:y}))item.guide.setAttribute(key,value);
+    }
+  }
   v.labelLayout=()=>{
     if(city)return;
     v.camera.updateMatrixWorld();
     const width=v.canvas.clientWidth,height=v.canvas.clientHeight,gap=4,placed=[];
     if(!width||!height)return;
+    labelWidth=width;labelHeight=height;
     labelGuides.setAttribute('viewBox','0 0 '+width+' '+height);labelGuides.replaceChildren();
-    const project=point=>{const p=point.clone().project(v.camera);return {x:(p.x+1)*width/2,y:(1-p.y)*height/2};};
+    const project=projectLabel;
     const inRing=(x,y,ring)=>{let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;};
     const items=v.scene.children.filter(g=>g.userData.label).map(g=>{
-      const label=g.userData.label,anchor=project(g.userData.point);
+      const label=g.userData.label,anchor=project(g.userData.point),raised=project(g.userData.point.clone().add(new THREE.Vector3(0,liftHeight,0)));
       const polygons=g.userData.labelPolygons.map(rings=>rings.map(ring=>ring.map(coord=>{const p=convert(coord);return project(new THREE.Vector3(p.x,.11,-p.y));})));
       const points=polygons.flat(2),xs=points.map(p=>p.x),ys=points.map(p=>p.y);
-      return {group:g,label,anchor,polygons,w:label.offsetWidth,h:label.offsetHeight,area:(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys))};
+      return {group:g,label,anchor,polygons,dx:raised.x-anchor.x,dy:raised.y-anchor.y,w:label.offsetWidth,h:label.offsetHeight,area:(Math.max(...xs)-Math.min(...xs))*(Math.max(...ys)-Math.min(...ys))};
     }).sort((a,b)=>a.area-b.area);
-    // Give small districts first choice. Prefer positions over their own district;
-    // if the map is too narrow, use a short leader instead of covering another name.
+    // Reserve each label's complete lift path so it can follow its district
+    // without colliding with neighbouring names. Layout runs only on size changes.
     const offsets=[{x:0,y:0}];
     for(let y=-64;y<=64;y+=4)for(let x=-64;x<=64;x+=4)if(x||y)offsets.push({x,y});
     offsets.sort((a,b)=>(a.x*a.x+a.y*a.y)-(b.x*b.x+b.y*b.y));
@@ -155,7 +167,7 @@ function makeMap(id,city){
       for(const stayInDistrict of [true,false]){
         for(const offset of offsets){
           const x=item.anchor.x+offset.x,y=item.anchor.y+offset.y;
-          const box={left:x-item.w/2,right:x+item.w/2,top:y-item.h/2,bottom:y+item.h/2};
+          const box={left:x-item.w/2+Math.min(0,item.dx),right:x+item.w/2+Math.max(0,item.dx),top:y-item.h/2+Math.min(0,item.dy),bottom:y+item.h/2+Math.max(0,item.dy)};
           if(box.left<gap||box.right>width-gap||box.top<gap||box.bottom>height-gap)continue;
           if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
           if(stayInDistrict&&!item.polygons.some(rings=>inRing(x,y,rings[0])&&!rings.slice(1).some(ring=>inRing(x,y,ring))))continue;
@@ -163,18 +175,32 @@ function makeMap(id,city){
         }
         if(chosen)break;
       }
+      // Text-only zoom can exhaust the nearby positions without resizing the map.
+      // Search the remaining map space before falling back to the original anchor.
+      if(!chosen){
+        let distance=Infinity;
+        for(let y=gap+item.h/2-Math.min(0,item.dy);y<=height-gap-item.h/2-Math.max(0,item.dy);y+=4){
+          for(let x=gap+item.w/2-Math.min(0,item.dx);x<=width-gap-item.w/2-Math.max(0,item.dx);x+=4){
+            const d=(x-item.anchor.x)**2+(y-item.anchor.y)**2;if(d>=distance)continue;
+            const box={left:x-item.w/2+Math.min(0,item.dx),right:x+item.w/2+Math.max(0,item.dx),top:y-item.h/2+Math.min(0,item.dy),bottom:y+item.h/2+Math.max(0,item.dy)};
+            if(placed.some(b=>box.right+gap>b.left&&box.left-gap<b.right&&box.bottom+gap>b.top&&box.top-gap<b.bottom))continue;
+            chosen={x,y,leader:true};distance=d;
+          }
+        }
+      }
       chosen=chosen||item.anchor;
-      item.label.style.left=chosen.x+'px';item.label.style.top=chosen.y+'px';
-      const box={left:chosen.x-item.w/2,right:chosen.x+item.w/2,top:chosen.y-item.h/2,bottom:chosen.y+item.h/2};
-      item.group.userData.labelBox=box;placed.push(box);
+      item.x=chosen.x;item.y=chosen.y;
+      placed.push({left:chosen.x-item.w/2+Math.min(0,item.dx),right:chosen.x+item.w/2+Math.max(0,item.dx),top:chosen.y-item.h/2+Math.min(0,item.dy),bottom:chosen.y+item.h/2+Math.max(0,item.dy)});
       if(chosen.leader){
         const line=document.createElementNS('http://www.w3.org/2000/svg','line');
         for(const [key,value] of Object.entries({x1:item.anchor.x,y1:item.anchor.y,x2:chosen.x,y2:chosen.y,stroke:'#526071','stroke-width':1.2}))line.setAttribute(key,value);
-        labelGuides.append(line);
+        labelGuides.append(line);item.guide=line;
       }
     }
+    labelItems=items;positionLabels();
   };v.labelLayout();
   document.fonts.ready.then(()=>v.labelLayout());
+  if(!city){const labelSizes=new ResizeObserver(()=>v.labelLayout());labelItems.forEach(item=>labelSizes.observe(item.label));}
   function hit(e){
     const b=v.canvas.getBoundingClientRect(),pad=(e.pointerType==='touch'||matchMedia('(pointer: coarse)').matches)?18:10;
     // A displaced name still selects the district it names, including on touch.
@@ -188,7 +214,7 @@ function makeMap(id,city){
     }return null;
   }
   v.canvas.addEventListener('pointermove',e=>{hovered=hit(e);v.dirty=true;wakeScene();v.canvas.style.cursor=hovered?'pointer':'default';});v.canvas.addEventListener('pointerleave',()=>{hovered=null;v.dirty=true;wakeScene();});v.canvas.addEventListener('click',e=>{const h=hit(e);if(h)window.cameraApp.openQuery({district:city?'all':h.userData.name});});
-  v.tick=()=>{let moving=false;shapes.forEach(m=>{const active=city?!!hovered:m.userData.group===hovered;const lift=active?.18:0;m.userData.group.position.y=reduce.matches?lift:m.userData.group.position.y+(lift-m.userData.group.position.y)*.22;if(Math.abs(lift-m.userData.group.position.y)>.001)moving=true;m.material.emissive.set(active?0x242a4b:0x000000);});return moving;};
+  v.tick=()=>{let moving=false;shapes.forEach(m=>{const active=city?!!hovered:m.userData.group===hovered;const lift=active?liftHeight:0;m.userData.group.position.y=reduce.matches?lift:m.userData.group.position.y+(lift-m.userData.group.position.y)*.22;if(Math.abs(lift-m.userData.group.position.y)>.001)moving=true;m.material.emissive.set(active?0x242a4b:0x000000);});positionLabels();return moving;};
 }
 
 function tick(ms){

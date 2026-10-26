@@ -4,7 +4,7 @@
   const load = (src, module = false) => {
     if (jobs.has(src)) return jobs.get(src);
     const promise = new Promise((resolve, reject) => {
-      const script = document.createElement('script'); script.src = src + '?v=20261026-camera-fallback';
+      const script = document.createElement('script'); script.src = src + (src === './scene.js' ? '?v=20261026-map-labels' : '?v=20261026-camera-fallback');
       if (module) script.type = 'module'; script.async = true;
       script.onload = resolve; script.onerror = reject; document.head.append(script);
     });
