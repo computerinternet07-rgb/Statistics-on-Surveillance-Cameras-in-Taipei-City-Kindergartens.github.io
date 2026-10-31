@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify JSON transport and CSP before publishing
+        run: node --test .github/tests/security.test.mjs
       - name: Refresh public data and prepare static files
         run: node .github/scripts/publish-data.mjs
       - name: Upload site
